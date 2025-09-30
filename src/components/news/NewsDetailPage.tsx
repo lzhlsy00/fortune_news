@@ -2,23 +2,28 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useState, useEffect, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import { useFrontendNews } from '@/hooks/useFrontendNews'
-import { NewsItem } from '@/types/api'
+import type { NewsItem } from '@/types/api'
 import type { Components } from 'react-markdown'
 import type { JSX, ReactNode } from 'react'
+import type { Locale } from '@/i18n/config'
+import type { AppMessages } from '@/i18n/messages'
 
-export default function NewsDetailPage() {
-  const params = useParams()
+interface NewsDetailPageProps {
+  newsId: number
+  locale: Locale
+  messages: AppMessages
+}
+
+export default function NewsDetailPage({ newsId, locale, messages }: NewsDetailPageProps) {
   const router = useRouter()
   const { fetchNewsDetail, loading, error } = useFrontendNews()
   const [newsItem, setNewsItem] = useState<NewsItem | null>(null)
-
-  const newsId = params.id ? parseInt(params.id as string) : null
 
   const loadNewsDetail = useCallback(
     async (id: number) => {
@@ -34,32 +39,35 @@ export default function NewsDetailPage() {
 
   useEffect(() => {
     if (newsId) {
-      loadNewsDetail(newsId)
+      void loadNewsDetail(newsId)
     }
   }, [newsId, loadNewsDetail])
 
-  // 格式化时间
   const formatTime = (isoDate: string) => {
     const date = new Date(isoDate)
-    return date.toLocaleString('zh-CN', {
+    return new Intl.DateTimeFormat(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
-    })
+      minute: '2-digit',
+    }).format(date)
   }
 
-  const getCategoryColor = (category: string | null) => {
-    if (!category) return 'bg-gray-100 text-gray-800';
+  const categoryColorMap: Record<string, string> = {
+    '财经': 'bg-blue-100 text-blue-800',
+    '科技': 'bg-green-100 text-green-800',
+    '国际': 'bg-purple-100 text-purple-800',
+    '体育': 'bg-orange-100 text-orange-800',
+    Finance: 'bg-blue-100 text-blue-800',
+    Technology: 'bg-green-100 text-green-800',
+    World: 'bg-purple-100 text-purple-800',
+    Sports: 'bg-orange-100 text-orange-800',
+  }
 
-    const colors: Record<string, string> = {
-      '财经': 'bg-blue-100 text-blue-800',
-      '科技': 'bg-green-100 text-green-800',
-      '国际': 'bg-purple-100 text-purple-800',
-      '体育': 'bg-orange-100 text-orange-800'
-    };
-    return colors[category] || 'bg-gray-100 text-gray-800';
+  const getCategoryStyle = (category: string | null) => {
+    if (!category) return 'bg-gray-100 text-gray-800'
+    return categoryColorMap[category] || 'bg-gray-100 text-gray-800'
   }
 
   type MarkdownComponentProps<T extends keyof JSX.IntrinsicElements> = JSX.IntrinsicElements[T] & {
@@ -130,7 +138,7 @@ export default function NewsDetailPage() {
       <td className="border border-gray-300 px-4 py-2 text-gray-700" {...rest}>
         {children}
       </td>
-    )
+    ),
   }
 
   if (loading) {
@@ -138,7 +146,7 @@ export default function NewsDetailPage() {
       <div className="bg-gray-50 min-h-screen">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
-            <div className="text-gray-600">加载中...</div>
+            <div className="text-gray-600">{messages.detail.loading}</div>
           </div>
         </div>
       </div>
@@ -151,20 +159,20 @@ export default function NewsDetailPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
             <div className="text-red-600 mb-4">
-              {error || '新闻不存在或已下线'}
+              {messages.detail.notFound}
             </div>
             <div className="space-x-4">
-              <button 
+              <button
                 onClick={() => router.back()}
                 className="px-6 py-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
               >
-                返回上一页
+                {messages.detail.back}
               </button>
-              <Link 
-                href="/"
+              <Link
+                href={`/${locale}`}
                 className="inline-block px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
-                返回首页
+                {messages.detail.backToHome}
               </Link>
             </div>
           </div>
@@ -176,33 +184,30 @@ export default function NewsDetailPage() {
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 返回按钮 */}
         <div className="mb-6">
-          <button 
+          <button
             onClick={() => router.back()}
             className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            返回
+            {messages.detail.back}
           </button>
         </div>
 
-        {/* 新闻详情 */}
         <article className="bg-white rounded-lg shadow-md overflow-hidden">
-          {/* 头部信息 */}
           <div className="p-8 border-b border-gray-200">
             <div className="mb-4">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(newsItem.category)}`}>
-                {newsItem.category || '未分类'}
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getCategoryStyle(newsItem.category)}`}>
+                {newsItem.category || messages.detail.categoryUnknown}
               </span>
             </div>
-            
+
             <h1 className="text-3xl font-bold text-gray-900 mb-4 leading-tight">
               {newsItem.title}
             </h1>
-            
+
             <div className="flex items-center text-gray-500 text-sm space-x-6">
               <div className="flex items-center">
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -213,7 +218,6 @@ export default function NewsDetailPage() {
             </div>
           </div>
 
-          {/* 新闻内容 */}
           <div className="p-8">
             {newsItem.content ? (
               <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
@@ -223,37 +227,33 @@ export default function NewsDetailPage() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-gray-500">暂无新闻内容</p>
+                <p className="text-gray-500">{messages.detail.noContent}</p>
               </div>
             )}
           </div>
 
-          {/* 底部操作 */}
           <div className="px-8 py-6 bg-gray-50 border-t border-gray-200">
             <div className="flex justify-between items-center">
-              <Link 
-                href="/"
-                className="text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                ← 返回新闻列表
+              <Link href={`/${locale}`} className="text-blue-600 hover:text-blue-800 transition-colors">
+                {messages.detail.backToList}
               </Link>
-              
+
               <div className="flex space-x-4">
-                <button 
+                <button
                   onClick={() => {
                     if (navigator.share) {
-                      navigator.share({
+                      void navigator.share({
                         title: newsItem.title,
-                        url: window.location.href
-                      });
+                        url: window.location.href,
+                      })
                     } else {
-                      navigator.clipboard.writeText(window.location.href);
-                      alert('链接已复制到剪贴板');
+                      void navigator.clipboard.writeText(window.location.href)
+                      alert(messages.detail.shareCopied)
                     }
                   }}
                   className="text-gray-600 hover:text-gray-800 transition-colors"
                 >
-                  分享
+                  {messages.detail.share}
                 </button>
               </div>
             </div>
