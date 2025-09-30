@@ -1,7 +1,19 @@
 import { NewsItem, BaseResponse, NewsListResponse, CategoryStat } from '../types/api';
 
 // 前台API配置 - 只获取已发布的新闻
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1').replace(/\/$/, '');
+const resolveApiBaseUrl = (): string => {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (envUrl && envUrl.length > 0) {
+    return envUrl.replace(/\/$/, '');
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin.replace(/\/$/, '')}/api/v1`;
+  }
+
+  // 作为最后的兜底，在本地开发时依旧指向默认地址
+  return 'http://localhost:3000/api/v1';
+};
 
 // 创建fetch封装
 type QueryParamValue = string | number | boolean | null | undefined;
@@ -10,7 +22,8 @@ type QueryParams = Record<string, QueryParamValue>;
 const apiClient = {
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const url = `${API_BASE_URL}${normalizedEndpoint}`;
+    const baseUrl = resolveApiBaseUrl();
+    const url = `${baseUrl}${normalizedEndpoint}`;
 
     const headers = new Headers(options.headers);
 
@@ -60,7 +73,7 @@ const apiClient = {
 };
 
 // 前台新闻API接口
-export interface PublicNewsListParams {
+export interface PublicNewsListParams extends Record<string, string | number | boolean | null | undefined> {
   page?: number;
   limit?: number;
   category?: string;

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { frontendNewsApi, handleFrontendApiError, PublicNewsListParams } from '../services/frontendApi';
 import { NewsItem, PaginationInfo } from '../types/api';
 
@@ -10,7 +10,7 @@ export const useFrontendNews = () => {
 
   const clearError = useCallback(() => setError(null), []);
 
-  const fetchPublishedNews = async (params: PublicNewsListParams = {}) => {
+  const fetchPublishedNews = useCallback(async (params: PublicNewsListParams = {}) => {
     setLoading(true);
     setError(null);
     try {
@@ -23,18 +23,18 @@ export const useFrontendNews = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchNewsDetail = async (id: number) => {
+  const fetchNewsDetail = useCallback(async (id: number) => {
     setLoading(true);
     setError(null);
     try {
       const result = await frontendNewsApi.getNewsDetail(id);
       if (result.success && result.data) {
         return result.data;
-      } else {
-        throw new Error(result.message || 'News not found');
       }
+
+      throw new Error(result.message || 'News not found');
     } catch (err) {
       const errorMessage = handleFrontendApiError(err);
       setError(errorMessage);
@@ -42,9 +42,9 @@ export const useFrontendNews = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchPopularCategories = async () => {
+  const fetchPopularCategories = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -57,7 +57,7 @@ export const useFrontendNews = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return {
     loading,
@@ -76,9 +76,15 @@ export const usePublishedNewsList = (initialParams: PublicNewsListParams = {}) =
   const [params, setParams] = useState<PublicNewsListParams>({ latest: true, ...initialParams });
   const { loading, error, fetchPublishedNews, clearError } = useFrontendNews();
 
-  const loadNews = async (newParams?: PublicNewsListParams) => {
+  const paramsRef = useRef(params);
+
+  useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
+
+  const loadNews = useCallback(async (newParams?: PublicNewsListParams) => {
     try {
-      const finalParams = newParams || params;
+      const finalParams = newParams ?? paramsRef.current;
       const result = await fetchPublishedNews(finalParams);
       if (result.success && result.data) {
         const shouldAppend = Boolean(newParams?.page && newParams.page > 1);
@@ -105,19 +111,23 @@ export const usePublishedNewsList = (initialParams: PublicNewsListParams = {}) =
     } catch (err) {
       console.error('Failed to load published news:', err);
     }
-  };
+  }, [fetchPublishedNews]);
 
-  const refreshNews = () => loadNews();
+  const refreshNews = useCallback(() => {
+    void loadNews();
+  }, [loadNews]);
 
-  const updateParams = (newParams: Partial<PublicNewsListParams>) => {
-    const updatedParams = { ...params, ...newParams };
-    setParams(updatedParams);
-    loadNews(updatedParams);
-  };
+  const updateParams = useCallback(
+    (newParams: Partial<PublicNewsListParams>) => {
+      const updatedParams = { ...paramsRef.current, ...newParams };
+      void loadNews(updatedParams);
+    },
+    [loadNews]
+  );
 
   useEffect(() => {
-    loadNews();
-  }, []);
+    void loadNews();
+  }, [loadNews]);
 
   return {
     newsList,

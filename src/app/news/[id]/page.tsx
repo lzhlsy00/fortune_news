@@ -1,12 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+/* eslint-disable @next/next/no-img-element */
+
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import { useFrontendNews } from '@/hooks/useFrontendNews'
 import { NewsItem } from '@/types/api'
+import type { Components } from 'react-markdown'
+import type { JSX, ReactNode } from 'react'
 
 export default function NewsDetailPage() {
   const params = useParams()
@@ -16,20 +20,23 @@ export default function NewsDetailPage() {
 
   const newsId = params.id ? parseInt(params.id as string) : null
 
+  const loadNewsDetail = useCallback(
+    async (id: number) => {
+      try {
+        const news = await fetchNewsDetail(id)
+        setNewsItem(news)
+      } catch (err) {
+        console.error('Failed to load news detail:', err)
+      }
+    },
+    [fetchNewsDetail]
+  )
+
   useEffect(() => {
     if (newsId) {
       loadNewsDetail(newsId)
     }
-  }, [newsId])
-
-  const loadNewsDetail = async (id: number) => {
-    try {
-      const news = await fetchNewsDetail(id)
-      setNewsItem(news)
-    } catch (err) {
-      console.error('Failed to load news detail:', err)
-    }
-  }
+  }, [newsId, loadNewsDetail])
 
   // 格式化时间
   const formatTime = (isoDate: string) => {
@@ -45,7 +52,7 @@ export default function NewsDetailPage() {
 
   const getCategoryColor = (category: string | null) => {
     if (!category) return 'bg-gray-100 text-gray-800';
-    
+
     const colors: Record<string, string> = {
       '财经': 'bg-blue-100 text-blue-800',
       '科技': 'bg-green-100 text-green-800',
@@ -53,6 +60,77 @@ export default function NewsDetailPage() {
       '体育': 'bg-orange-100 text-orange-800'
     };
     return colors[category] || 'bg-gray-100 text-gray-800';
+  }
+
+  type MarkdownComponentProps<T extends keyof JSX.IntrinsicElements> = JSX.IntrinsicElements[T] & {
+    children?: ReactNode
+  }
+
+  const markdownComponents: Components = {
+    h1: ({ children }: MarkdownComponentProps<'h1'>) => (
+      <h1 className="text-2xl font-bold text-gray-900 mb-4 mt-8 first:mt-0">{children}</h1>
+    ),
+    h2: ({ children }: MarkdownComponentProps<'h2'>) => (
+      <h2 className="text-xl font-semibold text-gray-900 mb-3 mt-6 first:mt-0">{children}</h2>
+    ),
+    h3: ({ children }: MarkdownComponentProps<'h3'>) => (
+      <h3 className="text-lg font-medium text-gray-900 mb-2 mt-4 first:mt-0">{children}</h3>
+    ),
+    p: ({ children }: MarkdownComponentProps<'p'>) => (
+      <p className="mb-4 text-gray-700 leading-relaxed">{children}</p>
+    ),
+    ul: ({ children }: MarkdownComponentProps<'ul'>) => (
+      <ul className="list-disc pl-6 mb-4 space-y-1">{children}</ul>
+    ),
+    ol: ({ children }: MarkdownComponentProps<'ol'>) => (
+      <ol className="list-decimal pl-6 mb-4 space-y-1">{children}</ol>
+    ),
+    li: ({ children }: MarkdownComponentProps<'li'>) => <li className="text-gray-700">{children}</li>,
+    blockquote: ({ children }: MarkdownComponentProps<'blockquote'>) => (
+      <blockquote className="border-l-4 border-blue-400 pl-4 py-2 mb-4 bg-blue-50 italic text-gray-700">
+        {children}
+      </blockquote>
+    ),
+    code: ({ children }: MarkdownComponentProps<'code'>) => (
+      <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-gray-800">{children}</code>
+    ),
+    pre: ({ children }: MarkdownComponentProps<'pre'>) => (
+      <pre className="bg-gray-100 p-4 rounded-md overflow-x-auto mb-4">{children}</pre>
+    ),
+    a: ({ href, children, ...rest }: MarkdownComponentProps<'a'>) => (
+      <a
+        href={typeof href === 'string' ? href : undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 hover:text-blue-800 underline"
+        {...rest}
+      >
+        {children}
+      </a>
+    ),
+    img: ({ src, alt, ...rest }: MarkdownComponentProps<'img'>) => (
+      <img
+        src={typeof src === 'string' ? src : undefined}
+        alt={alt ?? ''}
+        className="max-w-full h-auto rounded-lg shadow-md my-4"
+        {...rest}
+      />
+    ),
+    table: ({ children }: MarkdownComponentProps<'table'>) => (
+      <div className="overflow-x-auto mb-4">
+        <table className="min-w-full border-collapse border border-gray-300">{children}</table>
+      </div>
+    ),
+    th: ({ children, ...rest }: MarkdownComponentProps<'th'>) => (
+      <th className="border border-gray-300 bg-gray-100 px-4 py-2 text-left font-semibold text-gray-900" {...rest}>
+        {children}
+      </th>
+    ),
+    td: ({ children, ...rest }: MarkdownComponentProps<'td'>) => (
+      <td className="border border-gray-300 px-4 py-2 text-gray-700" {...rest}>
+        {children}
+      </td>
+    )
   }
 
   if (loading) {
@@ -139,67 +217,7 @@ export default function NewsDetailPage() {
           <div className="p-8">
             {newsItem.content ? (
               <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
-                <ReactMarkdown
-                  rehypePlugins={[rehypeRaw]}
-                  components={{
-                    h1: ({children}: any) => <h1 className="text-2xl font-bold text-gray-900 mb-4 mt-8 first:mt-0">{children}</h1>,
-                    h2: ({children}: any) => <h2 className="text-xl font-semibold text-gray-900 mb-3 mt-6 first:mt-0">{children}</h2>,
-                    h3: ({children}: any) => <h3 className="text-lg font-medium text-gray-900 mb-2 mt-4 first:mt-0">{children}</h3>,
-                    p: ({children}: any) => <p className="mb-4 text-gray-700 leading-relaxed">{children}</p>,
-                    ul: ({children}: any) => <ul className="list-disc pl-6 mb-4 space-y-1">{children}</ul>,
-                    ol: ({children}: any) => <ol className="list-decimal pl-6 mb-4 space-y-1">{children}</ol>,
-                    li: ({children}: any) => <li className="text-gray-700">{children}</li>,
-                    blockquote: ({children}: any) => (
-                      <blockquote className="border-l-4 border-blue-400 pl-4 py-2 mb-4 bg-blue-50 italic text-gray-700">
-                        {children}
-                      </blockquote>
-                    ),
-                    code: ({children}: any) => (
-                      <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-gray-800">
-                        {children}
-                      </code>
-                    ),
-                    pre: ({children}: any) => (
-                      <pre className="bg-gray-100 p-4 rounded-md overflow-x-auto mb-4">
-                        {children}
-                      </pre>
-                    ),
-                    a: ({href, children}: any) => (
-                      <a 
-                        href={href} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 underline"
-                      >
-                        {children}
-                      </a>
-                    ),
-                    img: ({src, alt}: any) => (
-                      <img 
-                        src={src} 
-                        alt={alt} 
-                        className="max-w-full h-auto rounded-lg shadow-md my-4"
-                      />
-                    ),
-                    table: ({children}: any) => (
-                      <div className="overflow-x-auto mb-4">
-                        <table className="min-w-full border-collapse border border-gray-300">
-                          {children}
-                        </table>
-                      </div>
-                    ),
-                    th: ({children}: any) => (
-                      <th className="border border-gray-300 bg-gray-100 px-4 py-2 text-left font-semibold text-gray-900">
-                        {children}
-                      </th>
-                    ),
-                    td: ({children}: any) => (
-                      <td className="border border-gray-300 px-4 py-2 text-gray-700">
-                        {children}
-                      </td>
-                    ),
-                  }}
-                >
+                <ReactMarkdown rehypePlugins={[rehypeRaw]} components={markdownComponents}>
                   {newsItem.content}
                 </ReactMarkdown>
               </div>
