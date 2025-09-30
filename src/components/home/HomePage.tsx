@@ -5,6 +5,7 @@ import { usePublishedNewsList } from '@/hooks/useFrontendNews'
 import type { AppMessages } from '@/i18n/messages'
 import { formatWithCount, formatWithError } from '@/i18n/utils'
 import type { Locale } from '@/i18n/config'
+import type { NewsItem } from '@/types/api'
 
 interface HomePageProps {
   locale: Locale
@@ -74,6 +75,35 @@ export default function HomePage({ locale, messages }: HomePageProps) {
     latest: true,
   })
 
+  const shouldDisplayNews = (news: NewsItem) =>
+    news.status === 'PUBLISH' && news.titleKo !== null && news.titleEn !== null
+
+  const getLocalizedTitle = (news: NewsItem) => {
+    if (locale === 'en') {
+      return news.titleEn ?? news.title
+    }
+
+    if (locale === 'ko') {
+      return news.titleKo ?? news.title
+    }
+
+    return news.title
+  }
+
+  const getLocalizedContent = (news: NewsItem) => {
+    if (locale === 'en') {
+      return news.translationEn ?? news.content
+    }
+
+    if (locale === 'ko') {
+      return news.translationKo ?? news.content
+    }
+
+    return news.content
+  }
+
+  const visibleNews = newsList.filter(shouldDisplayNews)
+
   const handleLoadMore = () => {
     if (pagination && pagination.hasNext) {
       updateParams({ page: pagination.current + 1 })
@@ -118,49 +148,54 @@ export default function HomePage({ locale, messages }: HomePageProps) {
           </div>
         )}
 
-        {newsList.length > 0 && (
+        {visibleNews.length > 0 && (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="divide-y divide-gray-200">
-              {newsList.map((news) => (
-                <Link
-                  key={news.id}
-                  href={`/${locale}/news/${news.id}`}
-                  className="block p-6 hover:bg-gray-50 transition-colors duration-200"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center mb-2">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryStyle(news.category)}`}>
-                          {news.category || messages.home.categoryUnknown}
-                        </span>
-                      </div>
-                      <h2 className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors duration-200">
-                        {news.title}
-                      </h2>
-                      {news.content && (
-                        <p className="text-gray-600 text-sm mt-2 line-clamp-2">
-                          {getPlainPreview(news.content)}
-                        </p>
-                      )}
-                    </div>
+              {visibleNews.map((news) => {
+                const localizedTitle = getLocalizedTitle(news)
+                const localizedContent = getLocalizedContent(news)
 
-                    <div className="ml-6 flex-shrink-0 text-sm text-gray-500 font-medium">
-                      {getRelativeTime(news.isoDate, messages.time)}
+                return (
+                  <Link
+                    key={news.id}
+                    href={`/${locale}/news/${news.id}`}
+                    className="block p-6 hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center mb-2">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryStyle(news.category)}`}>
+                            {news.category || messages.home.categoryUnknown}
+                          </span>
+                        </div>
+                        <h2 className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors duration-200">
+                          {localizedTitle}
+                        </h2>
+                        {localizedContent && (
+                          <p className="text-gray-600 text-sm mt-2 line-clamp-2">
+                            {getPlainPreview(localizedContent)}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="ml-6 flex-shrink-0 text-sm text-gray-500 font-medium">
+                        {getRelativeTime(news.isoDate, messages.time)}
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                )
+              })}
             </div>
           </div>
         )}
 
-        {!loading && newsList.length === 0 && (
+        {!loading && visibleNews.length === 0 && (
           <div className="text-center py-12">
             <div className="text-gray-500">{messages.home.noData}</div>
           </div>
         )}
 
-        {newsList.length > 0 && pagination && (
+        {visibleNews.length > 0 && pagination && (
           <div className="text-center mt-8 space-y-4">
             {pagination.hasNext ? (
               <button

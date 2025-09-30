@@ -15,9 +15,13 @@ export interface ValidationError {
 export interface NewsItem {
   id: number;
   title: string;
+  titleKo: string | null;
+  titleEn: string | null;
   isoDate: string;
   link: string;
   content: string | null;
+  translationKo: string | null;
+  translationEn: string | null;
   aiWorth: boolean | null;
   aiReason?: string | null;
   category: string | null;

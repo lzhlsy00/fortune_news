@@ -70,6 +70,30 @@ export default function NewsDetailPage({ newsId, locale, messages }: NewsDetailP
     return categoryColorMap[category] || 'bg-gray-100 text-gray-800'
   }
 
+  const getLocalizedTitle = (news: NewsItem) => {
+    if (locale === 'en') {
+      return news.titleEn ?? news.title
+    }
+
+    if (locale === 'ko') {
+      return news.titleKo ?? news.title
+    }
+
+    return news.title
+  }
+
+  const getLocalizedContent = (news: NewsItem) => {
+    if (locale === 'en') {
+      return news.translationEn ?? news.content
+    }
+
+    if (locale === 'ko') {
+      return news.translationKo ?? news.content
+    }
+
+    return news.content
+  }
+
   type MarkdownComponentProps<T extends keyof JSX.IntrinsicElements> = JSX.IntrinsicElements[T] & {
     children?: ReactNode
   }
@@ -181,6 +205,40 @@ export default function NewsDetailPage({ newsId, locale, messages }: NewsDetailP
     )
   }
 
+  const isDisplayable =
+    newsItem.status === 'PUBLISH' && newsItem.titleKo !== null && newsItem.titleEn !== null
+
+  if (!isDisplayable) {
+    return (
+      <div className="bg-gray-50 min-h-screen">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-12">
+            <div className="text-red-600 mb-4">
+              {messages.detail.notFound}
+            </div>
+            <div className="space-x-4">
+              <button
+                onClick={() => router.back()}
+                className="px-6 py-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+              >
+                {messages.detail.back}
+              </button>
+              <Link
+                href={`/${locale}`}
+                className="inline-block px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                {messages.detail.backToHome}
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const localizedTitle = getLocalizedTitle(newsItem)
+  const localizedContent = getLocalizedContent(newsItem)
+
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -205,7 +263,7 @@ export default function NewsDetailPage({ newsId, locale, messages }: NewsDetailP
             </div>
 
             <h1 className="text-3xl font-bold text-gray-900 mb-4 leading-tight">
-              {newsItem.title}
+              {localizedTitle}
             </h1>
 
             <div className="flex items-center text-gray-500 text-sm space-x-6">
@@ -219,10 +277,10 @@ export default function NewsDetailPage({ newsId, locale, messages }: NewsDetailP
           </div>
 
           <div className="p-8">
-            {newsItem.content ? (
+            {localizedContent ? (
               <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
                 <ReactMarkdown rehypePlugins={[rehypeRaw]} components={markdownComponents}>
-                  {newsItem.content}
+                  {localizedContent}
                 </ReactMarkdown>
               </div>
             ) : (
@@ -243,7 +301,7 @@ export default function NewsDetailPage({ newsId, locale, messages }: NewsDetailP
                   onClick={() => {
                     if (navigator.share) {
                       void navigator.share({
-                        title: newsItem.title,
+                        title: localizedTitle,
                         url: window.location.href,
                       })
                     } else {
